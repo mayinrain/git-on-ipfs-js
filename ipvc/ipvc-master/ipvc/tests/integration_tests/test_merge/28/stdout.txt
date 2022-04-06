@@ -1,0 +1,5 @@
+Merge conflict in groceries.txt
+Merge produced conflicts.
+Edit the conflicts and run `ipvc branch merge --resolve [--message <msg>]`
+Or run `ipvc branch merge --resolve` to bring up your editor of choice
+To abort, run `ipvc branch merge --abort`
