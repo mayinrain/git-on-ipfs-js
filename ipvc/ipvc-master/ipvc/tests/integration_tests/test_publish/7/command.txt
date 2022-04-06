@@ -1,1 +1,0 @@
-ipvc  --mfs-namespace /test id set --name Bob
