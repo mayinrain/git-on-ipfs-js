@@ -20,7 +20,8 @@ module.exports = {
             }
 
             conn.query(sql, sqlArr, callBack)
-            conn.release();
+            pool.releaseConnection(conn);
+            console.log('清空');
         })
     }
 }

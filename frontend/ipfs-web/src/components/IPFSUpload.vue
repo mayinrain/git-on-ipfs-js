@@ -1,46 +1,51 @@
 <template>
     <div>
-        <p style="color: cornflowerblue; font-size: 26px; margin-bottom: 10px">
-            选择单个文件上传
-        </p>
-        <input
-            type="file"
-            value=""
-            id="file"
-            @change="uploadFile"
-            style="margin-left: 60px"
-        />
-        <button @click="submit">确定</button>
-        <p
-            style="
-                color: cornflowerblue;
-                font-size: 26px;
-                margin-top: 30px;
-                margin-bottom: 10px;
-            "
+        <a-upload-dragger
+            v-model:file-list="fileList"
+            name="file"
+            :multiple="false"
+            :before-upload="beforeUpload"
+            @change="handleChange"
         >
-            文件夹?点击这里上传
-        </p>
-        <input
-            type="file"
-            value=""
-            id="file"
-            @change="uploadFolder"
-            style="margin-left: 60px"
-            webkitdirectory
-            multiple
-        />
-        <button>确定</button>
-        <p
-            style="
-                color: cornflowerblue;
-                font-size: 26px;
-                margin-top: 30px;
-                margin-bottom: 10px;
-            "
+            <p class="ant-upload-drag-icon">
+                <inbox-outlined></inbox-outlined>
+            </p>
+            <p class="ant-upload-text">上传单个文件</p>
+            <p class="ant-upload-hint">
+                如需更新已有文件，请到单个文件列表中选择更新
+            </p>
+        </a-upload-dragger>
+        <a-button
+            type="primary"
+            :disable="fileList.length"
+            :loading="uploading"
+            @click="confirmUpload"
+            style="margin-top: 30px; margin-bottom: 20px"
+            >{{ uploading ? '上传中' : '开始上传' }}</a-button
         >
-            如要更新文件请到文件列表目录下更新！
-        </p>
+        <div class="upload-folder">
+            <p class="icon">
+                <inbox-outlined></inbox-outlined>
+            </p>
+            <p class="text">上传文件夹</p>
+            <p class="hint">如需更新已有文件夹，请到文件夹列表中选择更新</p>
+            <input
+                type="file"
+                @change="uploadFolder"
+                webkitdirectory
+                multiple
+                ref="folder"
+            />
+        </div>
+
+        <a-button
+            type="primary"
+            :disable="souceFile.length"
+            :loading="uploading"
+            @click="confirm"
+            style="margin-top: 30px; margin-bottom: 20px"
+            >{{ uploading ? '上传中' : '开始上传' }}</a-button
+        >
     </div>
 </template>
 
@@ -48,14 +53,14 @@
 import * as ipfsClient from 'ipfs-http-client'
 import api from '@/api/axios'
 import all from 'it-all'
-import { uuid } from '@/utils/uuid';
-import { getTime } from '@/utils/getTime';
+import { uuid } from '@/utils/uuid'
+import { getTime } from '@/utils/getTime'
+import { config } from '@/utils/ipfs-config'
+import { ref } from 'vue'
+import { InboxOutlined } from '@ant-design/icons-vue'
+import { notification } from 'ant-design-vue'
 // import download from 'downloadjs'
-const ipfs = ipfsClient.create({
-    host: 'localhost',
-    port: '5001',
-    protocol: 'http',
-}) // 连接本地的ipfs 后面可以连接远程的
+const ipfs = ipfsClient.create(config) // 连接本地的ipfs 后面可以连接远程的
 // const Utf8ArrayToStr = (array) => {
 //     var out, i, len, c
 //     var char2, char3
@@ -99,17 +104,23 @@ const ipfs = ipfsClient.create({
 //     return out
 // }
 
-
 // 上传单个文件
-let file
-let fileName
-const uploadFile = (e) => {
-    file = e.target.files[0]
-    fileName = e.target.files[0].name
+const fileList = ref([])
+const fileName = ref()
+const uploading = ref(false)
+const beforeUpload = () => {
+    return false
 }
-const submit = async () => {
+const handleChange = () => {
+    if (fileList.value.length > 1) {
+        fileList.value.splice(0, 1)
+    }
+    fileName.value = fileList.value[0].name
+}
+const confirmUpload = async () => {
     try {
-        const added = await ipfs.add(file, {
+        uploading.value = true
+        const added = await ipfs.add(fileList.value[0].originFileObj, {
             progress: (prog) => console.log(`received: ${prog}`),
         })
         let hashCode = added.cid.toString()
@@ -119,23 +130,36 @@ const submit = async () => {
         //     download(blob, fileName)
         // }
 
-        // 单个文件status为0， 文件夹为1
+        // status 1 表示为目前使用版本
         api.post('/', {
             hashcode: hashCode,
             status: '0',
             createTime: getTime(),
-            filename: fileName,
+            filename: fileName.value,
             username: 'YonghaoMei',
-            uid: uuid(8,16),
+            uid: uuid(8, 16),
             new: '1',
             last: '1'
+            // cate: '0', //0为file 1为folder
         }).then((res) => {
             console.log(res)
-            file = null
-            fileName = null
+            uploading.value = false
+            fileList.value = []
+            fileName.value = ''
+            notification.open({
+                message: '上传成功啦',
+                description: '点击单个文件列表查看已上传文件',
+            })
         })
     } catch (err) {
         console.error(err)
+        uploading.value = false
+        fileList.value = []
+        fileName.value = ''
+        notification.open({
+            message: '上传失败:(',
+            description: '请检查ipfs是否启动或者当前网络情况',
+        })
     }
 }
 // 上传文件夹
@@ -151,26 +175,65 @@ function normalizeFiles(files) {
     }
     return streams
 }
-const uploadFolder = async (e) => {
+const souceFile = ref([])
+const folder = ref(null)
+const uploadFolder = (e) => {
     const { files } = e.target
     const filterFiles = normalizeFiles(files)
-    const souceFile = filterFiles
+    souceFile.value = filterFiles
         .filter(($) => !IGNORED_FILES.includes($.path))
         .map(($) => ($.path[0] === '/' ? { ...$, path: $.path.slice(1) } : $))
+}
+const confirm = async () => {
+    try {
+        uploading.value = true
+        const result = await all(
+            ipfs.addAll(souceFile.value, {
+                pin: false,
+                wrapWithDirectory: false,
+            })
+        )
+        console.log(result, '文件夹地址')
+        console.log(result[result.length - 1].cid.toString(), '根路径地址')
+    } catch (err) {
+        uploading.value = false
+        folder.value.value = null
+        console.log(err)
+    }
 
-    const result = await all(
-        ipfs.addAll(souceFile, {
-            pin: false,
-            wrapWithDirectory: false,
-        })
-    )
-    ipfs.addAll(souceFile, {
-        pin: false,
-        wrapWithDirectory: false,
-    })
-    console.log(result, '文件夹地址')
-    console.log(result[result.length - 1].cid.toString(), '根路径地址')
+    uploading.value = false
+    folder.value.value = null
 }
 </script>
 
-<style></style>
+<style lang="less" scoped>
+.upload-folder {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    background: #fafafa;
+    border: 1px dashed #d9d9d9;
+    border-radius: 2px;
+    transition: border-color 0.3s;
+    padding: 16px 0px;
+    .icon {
+        color: #40a9ff;
+        font-size: 48px;
+        margin-bottom: 20px;
+        height: 48px;
+        .anction {
+            vertical-align: 0px !important;
+        }
+    }
+    .text {
+        margin: 0 0 4px;
+        color: rgba(0, 0, 0, 0.85);
+        font-size: 16px;
+    }
+    .hint {
+        color: rgba(0, 0, 0, 0.45);
+        font-size: 14px;
+    }
+}
+</style>
