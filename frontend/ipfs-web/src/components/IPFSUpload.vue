@@ -107,6 +107,8 @@ const ipfs = ipfsClient.create(config) // 连接本地的ipfs 后面可以连接
 // 上传单个文件
 const fileList = ref([])
 const fileName = ref()
+const username = ref()
+username.value = localStorage.getItem('username')
 const uploading = ref(false)
 const beforeUpload = () => {
     return false
@@ -136,7 +138,7 @@ const confirmUpload = async () => {
             status: '0',
             createTime: getTime(),
             filename: fileName.value,
-            username: 'YonghaoMei',
+            username: username.value,
             uid: uuid(8, 16),
             new: '1',
             last: '1'

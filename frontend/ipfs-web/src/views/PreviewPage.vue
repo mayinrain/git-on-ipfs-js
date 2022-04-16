@@ -4,7 +4,7 @@
             <a class="back-to-list" @click="backToList">返回列表</a> <span class="name">{{ filename }}</span>
         </div>
         <pre
-            style="overflow: auto; height: 100%"
+            style="height: 100%"
         ><code :class="'language-'+type" v-html="Prism.highlight(formatContent, Prism.languages[type], type)"></code></pre>
     </div>
 </template>
@@ -90,8 +90,14 @@ onMounted(() => {
 })
 // 返回列表
 const backToList = () => {
-    router.push('/fileList')
+    router.push({name:'fileList', params:{
+        page: current.value
+    }})
+    
 }
+console.log(router.currentRoute.value.query.page);
+const current = ref()
+current.value = router.currentRoute.value.query.page
 </script>
 <style scoped lang="less">
 .title {

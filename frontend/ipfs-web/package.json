@@ -14,6 +14,7 @@
     "downloadjs": "^1.4.7",
     "ipfs-http-client": "^56.0.1",
     "it-all": "^1.0.6",
+    "mitt": "^3.0.0",
     "moment": "^2.29.1",
     "prismjs": "^1.27.0",
     "vue": "^3.2.13",
